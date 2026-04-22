@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SQL Query Generator</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #242736;
+      --border: #2d3148;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --green: #22c55e;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 1.25rem 2rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    header h1 { font-size: 1.2rem; font-weight: 600; letter-spacing: -0.02em; }
+    header h1 span { color: var(--accent); }
+
+    main {
+      flex: 1;
+      max-width: 860px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.5rem;
+    }
+
+    textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      color: var(--text);
+      font-size: 0.9375rem;
+      font-family: inherit;
+      line-height: 1.6;
+      resize: vertical;
+      min-height: 90px;
+      transition: border-color 0.15s;
+      outline: none;
+    }
+
+    textarea:focus { border-color: var(--accent); }
+
+    .examples {
+      margin-top: 0.75rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .example-chip {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 0.3rem 0.8rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+    }
+
+    .example-chip:hover { color: var(--text); border-color: var(--accent); }
+
+    button.btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9375rem;
+      font-weight: 500;
+      cursor: pointer;
+      padding: 0.75rem 1.5rem;
+      width: 100%;
+      margin-top: 1rem;
+      transition: background 0.15s;
+    }
+
+    button.btn-primary:hover { background: var(--accent-hover); }
+
+    .btn-copy {
+      background: var(--surface2);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.35rem 0.8rem;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-copy:hover { color: var(--text); border-color: var(--accent); }
+    .btn-copy.copied { color: var(--green); border-color: var(--green); }
+
+    .output { display: none; flex-direction: column; gap: 1rem; }
+    .output.visible { display: flex; }
+
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.65rem 1.25rem;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-header span {
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .sql-body {
+      padding: 1.25rem;
+      font-family: 'Menlo', 'Monaco', 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 0.875rem;
+      line-height: 1.75;
+      color: #c9d1d9;
+      white-space: pre;
+      overflow-x: auto;
+    }
+
+    /* SQL keyword highlighting */
+    .sql-body .kw  { color: #ff79c6; font-weight: 600; }
+    .sql-body .fn  { color: #50fa7b; }
+    .sql-body .str { color: #f1fa8c; }
+    .sql-body .num { color: #bd93f9; }
+    .sql-body .cmt { color: #6272a4; font-style: italic; }
+
+    .explain-body {
+      padding: 1.25rem;
+      font-size: 0.9375rem;
+      line-height: 1.75;
+      color: var(--text);
+    }
+
+    .explain-body ul { padding-left: 1.25rem; margin-top: 0.5rem; }
+    .explain-body li { margin-bottom: 0.25rem; }
+    .explain-body code {
+      background: var(--surface2);
+      border-radius: 4px;
+      padding: 0.1em 0.4em;
+      font-family: monospace;
+      font-size: 0.875em;
+      color: #bd93f9;
+    }
+
+    .error {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 8px;
+      padding: 0.875rem 1.25rem;
+      color: #fca5a5;
+      font-size: 0.875rem;
+    }
+
+    footer {
+      text-align: center;
+      padding: 1rem;
+      color: var(--muted);
+      font-size: 0.75rem;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="12" cy="5" rx="9" ry="3"/>
+    <path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/>
+    <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/>
+  </svg>
+  <h1>SQL Query <span>Generator</span></h1>
+</header>
+
+<main>
+  <div class="card">
+    <label for="question">Describe what you want in plain English</label>
+    <textarea id="question" placeholder="e.g. Show me the top 10 customers by total order value in the last 30 days" rows="4"></textarea>
+
+    <div class="examples">
+      <span class="example-chip" onclick="setExample(this)">Show all active users</span>
+      <span class="example-chip" onclick="setExample(this)">Count orders by status</span>
+      <span class="example-chip" onclick="setExample(this)">Top 5 products by revenue</span>
+      <span class="example-chip" onclick="setExample(this)">Average salary by department</span>
+      <span class="example-chip" onclick="setExample(this)">Customers who joined in the last 30 days</span>
+      <span class="example-chip" onclick="setExample(this)">Total sales this month</span>
+    </div>
+
+    <button class="btn-primary" onclick="generate()">Generate SQL</button>
+  </div>
+
+  <div class="output" id="output"></div>
+</main>
+
+<footer>Runs entirely in your browser · No API key · No internet required</footer>
+
+<script>
+// ─── UI helpers ──────────────────────────────────────────────────────────────
+
+const qEl     = document.getElementById('question');
+const output  = document.getElementById('output');
+
+qEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) generate();
+});
+
+function setExample(el) {
+  qEl.value = el.textContent;
+  qEl.focus();
+}
+
+function generate() {
+  const q = qEl.value.trim();
+  if (!q) { showError('Please describe what data you want.'); return; }
+
+  try {
+    const result = nlToSQL(q);
+    showResult(result);
+  } catch (err) {
+    showError('Could not parse your question. Try rephrasing it.');
+  }
+}
+
+function showResult({ sql, explanation }) {
+  output.innerHTML = '';
+
+  // SQL section
+  const sqlSec = document.createElement('div');
+  sqlSec.className = 'section';
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'btn-copy';
+  copyBtn.textContent = 'Copy';
+  copyBtn.onclick = () => copyText(sql, copyBtn);
+
+  const sqlHeader = document.createElement('div');
+  sqlHeader.className = 'section-header';
+  sqlHeader.innerHTML = '<span>SQL Query</span>';
+  sqlHeader.appendChild(copyBtn);
+
+  const sqlBody = document.createElement('div');
+  sqlBody.className = 'sql-body';
+  sqlBody.innerHTML = highlight(sql);
+
+  sqlSec.appendChild(sqlHeader);
+  sqlSec.appendChild(sqlBody);
+
+  // Explanation section
+  const expSec = document.createElement('div');
+  expSec.className = 'section';
+  expSec.innerHTML = `
+    <div class="section-header"><span>Explanation</span></div>
+    <div class="explain-body">${explanation}</div>`;
+
+  output.appendChild(sqlSec);
+  output.appendChild(expSec);
+  output.className = 'output visible';
+}
+
+function showError(msg) {
+  output.innerHTML = `<div class="error">${msg}</div>`;
+  output.className = 'output visible';
+}
+
+async function copyText(text, btn) {
+  try {
+    await navigator.clipboard.writeText(text);
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  } catch {
+    btn.textContent = 'Failed';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+  }
+}
+
+// Simple SQL keyword highlighter
+function highlight(sql) {
+  const keywords = /\b(SELECT|FROM|WHERE|AND|OR|NOT|IN|LIKE|BETWEEN|IS|NULL|ORDER BY|GROUP BY|HAVING|LIMIT|JOIN|LEFT|RIGHT|INNER|OUTER|ON|AS|DISTINCT|UNION|INSERT|UPDATE|DELETE|SET|VALUES|CREATE|DROP|ALTER|TABLE|INDEX|PRIMARY|KEY|FOREIGN|REFERENCES|DEFAULT|CONSTRAINT|CASE|WHEN|THEN|ELSE|END|EXISTS|COUNT|SUM|AVG|MAX|MIN|COALESCE|IFNULL|DATE_SUB|DATE_ADD|NOW|CURDATE|MONTH|YEAR|DAY|INTERVAL|INTO|ALL)\b/g;
+  return sql
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/'[^']*'/g, m => `<span class="str">${m}</span>`)
+    .replace(/\b\d+(\.\d+)?\b/g, m => `<span class="num">${m}</span>`)
+    .replace(/\/\*[\s\S]*?\*\//g, m => `<span class="cmt">${m}</span>`)
+    .replace(keywords, m => `<span class="kw">${m}</span>`)
+    .replace(/\b(COUNT|SUM|AVG|MAX|MIN|DATE_SUB|DATE_ADD|NOW|CURDATE|MONTH|YEAR|DAY|COALESCE|IFNULL)\b/g, m => `<span class="fn">${m}</span>`);
+}
+
+// ─── NL → SQL Engine ─────────────────────────────────────────────────────────
+
+const TABLE_MAP = {
+  users:      ['user','users','customer','customers','member','members','person','people','account','accounts','subscriber','subscribers','client','clients','buyer','buyers'],
+  orders:     ['order','orders','purchase','purchases','transaction','transactions','sale','sales','booking','bookings','checkout','checkouts'],
+  products:   ['product','products','item','items','good','goods','listing','listings','inventory','sku','skus'],
+  employees:  ['employee','employees','staff','worker','workers','team member','team members','hire','hires'],
+  payments:   ['payment','payments','invoice','invoices','charge','charges','bill','bills','receipt','receipts'],
+  sessions:   ['session','sessions','login','logins','visit','visits','pageview','pageviews'],
+  reviews:    ['review','reviews','rating','ratings','feedback','comment','comments','testimonial'],
+  categories: ['category','categories','type','types','tag','tags','label','labels','genre','genres'],
+  events:     ['event','events','activity','activities','log','logs','action','actions'],
+  messages:   ['message','messages','email','emails','notification','notifications','chat','chats'],
+  departments:['department','departments','dept','team','teams','division','divisions','group','groups'],
+};
+
+function detectTable(q) {
+  // Explicit "from X" or "in X" or "of X"
+  const fromMatch = q.match(/\b(?:from|in the|in|of|for the|for)\s+(?:the\s+)?(\w+)\b/);
+  if (fromMatch) {
+    const w = fromMatch[1];
+    for (const [t, hints] of Object.entries(TABLE_MAP)) {
+      if (hints.includes(w) || t === w) return t;
+    }
+    return w.endsWith('s') ? w : w + 's';
+  }
+  // Scan full text
+  for (const [t, hints] of Object.entries(TABLE_MAP)) {
+    if (hints.some(h => q.includes(h))) return t;
+  }
+  return 'records';
+}
+
+function detectAggregation(q) {
+  if (/\b(how many|count(?: of)?|number of|total count|total number)\b/.test(q))
+    return { func: 'COUNT', col: '*', alias: 'total_count' };
+
+  const sumM = q.match(/\b(?:total|sum of?)\s+(\w+)\b/);
+  if (sumM) return { func: 'SUM', col: sumM[1], alias: `total_${sumM[1]}` };
+
+  const avgM = q.match(/\b(?:average|avg|mean)\s+(?:of\s+)?(\w+)\b/);
+  if (avgM) return { func: 'AVG', col: avgM[1], alias: `avg_${avgM[1]}` };
+
+  const maxM = q.match(/\b(?:maximum|max|highest|biggest)\s+(?:of\s+)?(\w+)\b/);
+  if (maxM) return { func: 'MAX', col: maxM[1], alias: `max_${maxM[1]}` };
+
+  const minM = q.match(/\b(?:minimum|min|lowest|smallest)\s+(?:of\s+)?(\w+)\b/);
+  if (minM) return { func: 'MIN', col: minM[1], alias: `min_${minM[1]}` };
+
+  return null;
+}
+
+function detectColumns(q, agg) {
+  if (agg) return null;
+
+  // "show me X, Y" or "get their X and Y"
+  const showM = q.match(/\b(?:show|get|fetch|find|list|display|return|select)\b(?:\s+me)?\s+(?:the\s+|their\s+|all\s+)?([\w,\s]+?)\s+(?:of\b|from\b|where\b|in\b|for\b|order\b|limit\b|who\b|that\b|$)/i);
+  if (showM) {
+    const raw = showM[1].trim();
+    const stop = ['all', 'everything', 'records', 'rows', 'data', 'entries', 'list', 'me', 'the', 'a'];
+    if (!stop.includes(raw)) {
+      const cols = raw.split(/,\s*|\s+and\s+/).map(c => c.trim().replace(/\s+/g, '_')).filter(Boolean);
+      if (cols.length && !stop.includes(cols[0])) return cols;
+    }
+  }
+  return ['*'];
+}
+
+function detectWhere(q) {
+  const conds = [];
+
+  // Active/inactive status
+  if (/\bactive\b/.test(q) && !/\binactive\b/.test(q)) conds.push(`status = 'active'`);
+  if (/\binactive\b/.test(q)) conds.push(`status = 'inactive'`);
+  if (/\bverified\b/.test(q)) conds.push(`is_verified = 1`);
+  if (/\bunverified\b/.test(q)) conds.push(`is_verified = 0`);
+  if (/\bpending\b/.test(q)) conds.push(`status = 'pending'`);
+  if (/\bcompleted?\b/.test(q)) conds.push(`status = 'completed'`);
+  if (/\bcancell?ed\b/.test(q)) conds.push(`status = 'cancelled'`);
+
+  // Time filters
+  const lastM = q.match(/\blast\s+(\d+)\s+(day|days|week|weeks|month|months|year|years)\b/i);
+  if (lastM) {
+    const n = lastM[1];
+    const unit = lastM[2].replace(/s$/i, '').toUpperCase();
+    conds.push(`created_at >= DATE_SUB(NOW(), INTERVAL ${n} ${unit})`);
+  }
+  if (/\btoday\b/.test(q)) conds.push(`DATE(created_at) = CURDATE()`);
+  if (/\bthis month\b/.test(q)) conds.push(`MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())`);
+  if (/\bthis year\b/.test(q)) conds.push(`YEAR(created_at) = YEAR(CURDATE())`);
+  if (/\byesterday\b/.test(q)) conds.push(`DATE(created_at) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)`);
+
+  // Numeric comparisons: "age greater than 30", "price less than 100"
+  const gtM = q.match(/(\w+)\s+(?:is\s+)?(?:greater than|more than|over|above|at least)\s+(\d+[\w.]*)/i);
+  if (gtM) conds.push(`${gtM[1]} > ${gtM[2]}`);
+
+  const ltM = q.match(/(\w+)\s+(?:is\s+)?(?:less than|fewer than|under|below|at most)\s+(\d+[\w.]*)/i);
+  if (ltM) conds.push(`${ltM[1]} < ${ltM[2]}`);
+
+  const eqM = q.match(/(\w+)\s+(?:is|equals?|=)\s+['"]?([a-zA-Z]\w*)['"]?/i);
+  if (eqM && !['status','verified','active'].includes(eqM[1].toLowerCase())) {
+    const isNum = /^\d+$/.test(eqM[2]);
+    conds.push(`${eqM[1]} = ${isNum ? eqM[2] : `'${eqM[2]}'`}`);
+  }
+
+  // "where X" explicit clause
+  const whereM = q.match(/\bwhere\s+(\w+)\s*(=|>|<|>=|<=|!=|is|like)\s*['"]?(\w+)['"]?/i);
+  if (whereM && !conds.some(c => c.startsWith(whereM[1]))) {
+    const col = whereM[1], op = whereM[2].toUpperCase() === 'IS' ? '=' : whereM[2], val = whereM[3];
+    const isNum = /^\d+$/.test(val);
+    conds.push(`${col} ${op} ${isNum ? val : `'${val}'`}`);
+  }
+
+  // "named/called X" → name LIKE '%X%'
+  const namedM = q.match(/\b(?:named|called|with name)\s+['"]?(\w+)['"]?/i);
+  if (namedM) conds.push(`name LIKE '%${namedM[1]}%'`);
+
+  return conds;
+}
+
+function detectGroupBy(q) {
+  const perM = q.match(/\b(?:per|for each|grouped by|group by|by each)\s+(\w+)/i);
+  if (perM) {
+    const col = perM[1];
+    const stop = ['the','a','an','me','my','our','their','its','all'];
+    if (!stop.includes(col)) return col;
+  }
+  // "X by Y" where X is an aggregation hint
+  if (/\b(?:count|total|sum|average|avg|number)\b/.test(q)) {
+    const byM = q.match(/\bby\s+(\w+)(?:\s|$)/i);
+    if (byM) {
+      const col = byM[1];
+      const stop = ['the','a','an','me','my','our','their','day','week','month','year','revenue','value','amount'];
+      if (!stop.includes(col)) return col;
+    }
+  }
+  return null;
+}
+
+function detectOrderLimit(q) {
+  let orderBy = null, orderDir = 'DESC', limit = null;
+
+  // "top N" / "first N" / "latest N"
+  const topM = q.match(/\b(?:top|first|latest|recent|last)\s+(\d+)\b/i);
+  if (topM) {
+    limit = parseInt(topM[1]);
+    if (/\b(latest|recent|newest|last)\b/.test(q)) { orderBy = 'created_at'; orderDir = 'DESC'; }
+  }
+
+  // "limit N"
+  const limM = q.match(/\blimit\s+(\d+)\b/i);
+  if (limM && !limit) limit = parseInt(limM[1]);
+
+  // "ordered by X" / "sorted by X" / "ranked by X"
+  const ordM = q.match(/\b(?:order(?:ed)?\s+by|sort(?:ed)?\s+by|rank(?:ed)?\s+by)\s+(\w+)/i);
+  if (ordM) orderBy = ordM[1];
+
+  // Highest/most → DESC
+  const hiM = q.match(/\b(?:highest|most|largest|biggest|greatest|best)\s+(\w+)/i);
+  if (hiM && !orderBy) { orderBy = hiM[1]; orderDir = 'DESC'; }
+
+  // Lowest/least → ASC
+  const loM = q.match(/\b(?:lowest|least|smallest|fewest|worst)\s+(\w+)/i);
+  if (loM && !orderBy) { orderBy = loM[1]; orderDir = 'ASC'; }
+
+  // Direction override
+  if (/\b(desc(?:ending)?|highest first|most first)\b/.test(q)) orderDir = 'DESC';
+  if (/\b(asc(?:ending)?|lowest first|oldest first)\b/.test(q)) orderDir = 'ASC';
+
+  return { orderBy, orderDir, limit };
+}
+
+function assembleSQL(table, agg, cols, where, groupBy, orderBy, orderDir, limit) {
+  const lines = [];
+
+  // SELECT
+  if (agg) {
+    lines.push(groupBy
+      ? `SELECT ${groupBy},\n       ${agg.func}(${agg.col}) AS ${agg.alias}`
+      : `SELECT ${agg.func}(${agg.col}) AS ${agg.alias}`);
+  } else {
+    lines.push(`SELECT ${(cols || ['*']).join(', ')}`);
+  }
+
+  // FROM
+  lines.push(`FROM   ${table}`);
+
+  // WHERE
+  if (where.length === 1) {
+    lines.push(`WHERE  ${where[0]}`);
+  } else if (where.length > 1) {
+    lines.push(`WHERE  ${where[0]}`);
+    where.slice(1).forEach(c => lines.push(`  AND  ${c}`));
+  }
+
+  // GROUP BY
+  if (groupBy && agg) lines.push(`GROUP BY ${groupBy}`);
+
+  // ORDER BY
+  const effectiveOrder = orderBy || (agg && groupBy ? agg.alias : null);
+  if (effectiveOrder) lines.push(`ORDER BY ${effectiveOrder} ${orderDir}`);
+
+  // LIMIT
+  if (limit) lines.push(`LIMIT  ${limit}`);
+
+  return lines.join('\n');
+}
+
+function buildExplanation(table, agg, cols, where, groupBy, orderBy, orderDir, limit) {
+  const parts = [];
+
+  if (agg) {
+    const funcDesc = { COUNT: 'counts', SUM: 'sums', AVG: 'averages', MAX: 'finds the maximum', MIN: 'finds the minimum' };
+    parts.push(`<strong>${funcDesc[agg.func]}</strong> <code>${agg.col === '*' ? 'all rows' : agg.col}</code> in the <code>${table}</code> table`);
+  } else {
+    const colStr = (cols || ['*']).join(', ');
+    parts.push(`Retrieves <code>${colStr}</code> from <code>${table}</code>`);
+  }
+
+  const items = [];
+  if (where.length) items.push(`<li>Filters where: <code>${where.join('</code> and <code>')}</code></li>`);
+  if (groupBy && agg) items.push(`<li>Groups results by <code>${groupBy}</code></li>`);
+  if (orderBy) items.push(`<li>Sorts by <code>${orderBy}</code> (${orderDir === 'DESC' ? 'highest first' : 'lowest first'})</li>`);
+  else if (agg && groupBy) items.push(`<li>Sorts by ${agg.alias} (highest first)</li>`);
+  if (limit) items.push(`<li>Returns at most <code>${limit}</code> rows</li>`);
+
+  let html = `<p>${parts.join(', ')}.</p>`;
+  if (items.length) html += `<ul>${items.join('')}</ul>`;
+  return html;
+}
+
+function nlToSQL(input) {
+  const q = input.toLowerCase();
+
+  const table    = detectTable(q);
+  const agg      = detectAggregation(q);
+  const cols     = detectColumns(q, agg);
+  const where    = detectWhere(q);
+  const groupBy  = detectGroupBy(q);
+  const { orderBy, orderDir, limit } = detectOrderLimit(q);
+
+  const sql = assembleSQL(table, agg, cols, where, groupBy, orderBy, orderDir, limit);
+  const explanation = buildExplanation(table, agg, cols, where, groupBy, orderBy, orderDir, limit);
+
+  return { sql, explanation };
+}
+</script>
+
+</body>
+</html>
