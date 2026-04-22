@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weather App</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: #fff;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 24px;
+      padding: 40px 36px;
+      width: 360px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      margin-bottom: 28px;
+      color: #a8d8ea;
+    }
+
+    .search-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 32px;
+    }
+
+    input {
+      flex: 1;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input::placeholder { color: rgba(255, 255, 255, 0.45); }
+    input:focus { border-color: #a8d8ea; }
+
+    button {
+      padding: 12px 18px;
+      border-radius: 12px;
+      border: none;
+      background: #a8d8ea;
+      color: #0f3460;
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    button:hover { background: #cce8f4; }
+    button:active { transform: scale(0.97); }
+
+    /* API key notice */
+    .api-notice {
+      background: rgba(255, 200, 100, 0.15);
+      border: 1px solid rgba(255, 200, 100, 0.4);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 0.78rem;
+      color: #ffd580;
+      margin-bottom: 24px;
+      text-align: left;
+      line-height: 1.5;
+    }
+
+    .api-notice a { color: #ffd580; }
+
+    /* Weather result */
+    #result { min-height: 160px; }
+
+    .weather-icon {
+      width: 96px;
+      height: 96px;
+      filter: drop-shadow(0 4px 12px rgba(168, 216, 234, 0.4));
+    }
+
+    .city-name {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 4px 0 2px;
+    }
+
+    .country { font-size: 0.85rem; color: rgba(255,255,255,0.55); margin-bottom: 16px; }
+
+    .temp {
+      font-size: 3.2rem;
+      font-weight: 800;
+      line-height: 1;
+      color: #a8d8ea;
+    }
+
+    .unit-toggle {
+      display: inline-flex;
+      gap: 6px;
+      margin: 8px 0 14px;
+      font-size: 0.78rem;
+    }
+
+    .unit-toggle span {
+      cursor: pointer;
+      padding: 2px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.25);
+      transition: background 0.2s;
+    }
+
+    .unit-toggle span.active { background: #a8d8ea; color: #0f3460; border-color: #a8d8ea; }
+
+    .condition {
+      font-size: 1rem;
+      text-transform: capitalize;
+      color: rgba(255,255,255,0.85);
+      margin-bottom: 20px;
+    }
+
+    .details {
+      display: flex;
+      justify-content: space-around;
+      background: rgba(255,255,255,0.06);
+      border-radius: 14px;
+      padding: 14px 8px;
+    }
+
+    .detail-item { display: flex; flex-direction: column; gap: 4px; }
+    .detail-label { font-size: 0.7rem; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: 0.5px; }
+    .detail-value { font-size: 0.95rem; font-weight: 600; }
+
+    .error {
+      background: rgba(255, 100, 100, 0.15);
+      border: 1px solid rgba(255, 100, 100, 0.35);
+      border-radius: 12px;
+      padding: 14px;
+      color: #ffaaaa;
+      font-size: 0.9rem;
+    }
+
+    .loader {
+      display: inline-block;
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(168, 216, 234, 0.3);
+      border-top-color: #a8d8ea;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 40px auto;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>&#9925; Weather App</h1>
+
+
+<div class="search-row">
+      <input id="cityInput" type="text" placeholder="Enter city name…" />
+      <button id="searchBtn">Search</button>
+    </div>
+
+    <div id="result"></div>
+  </div>
+
+  <script>
+    // ← Replace with your free OpenWeatherMap API key
+    const API_KEY = '846b0ba62e9aec5298158616cdf9cef0';
+
+    let useCelsius = true;
+    let lastData = null;
+
+    const cityInput = document.getElementById('cityInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const result    = document.getElementById('result');
+
+    searchBtn.addEventListener('click', fetchWeather);
+    cityInput.addEventListener('keydown', e => { if (e.key === 'Enter') fetchWeather(); });
+
+    async function fetchWeather() {
+      const city = cityInput.value.trim();
+      if (!city) return;
+
+      if (API_KEY === 'YOUR_API_KEY') {
+        showError('Please add your OpenWeatherMap API key in the script (see notice above).');
+        return;
+      }
+
+      result.innerHTML = '<div class="loader"></div>';
+
+      try {
+        const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${API_KEY}&units=metric`;
+        const res = await fetch(url);
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.message || 'City not found');
+        }
+
+        lastData = await res.json();
+        renderWeather(lastData);
+      } catch (err) {
+        showError(err.message);
+      }
+    }
+
+    function renderWeather(data) {
+      const tempC   = data.main.temp;
+      const feelsC  = data.main.feels_like;
+      const temp    = useCelsius ? tempC   : toF(tempC);
+      const feels   = useCelsius ? feelsC  : toF(feelsC);
+      const unit    = useCelsius ? '°C'    : '°F';
+      const icon    = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
+
+      result.innerHTML = `
+        <img class="weather-icon" src="${icon}" alt="${data.weather[0].description}" />
+        <div class="city-name">${data.name}</div>
+        <div class="country">${data.sys.country}</div>
+        <div class="temp">${Math.round(temp)}${unit}</div>
+        <div class="unit-toggle">
+          <span class="${useCelsius  ? 'active' : ''}" data-unit="c">°C</span>
+          <span class="${!useCelsius ? 'active' : ''}" data-unit="f">°F</span>
+        </div>
+        <div class="condition">${data.weather[0].description}</div>
+        <div class="details">
+          <div class="detail-item">
+            <span class="detail-label">Feels like</span>
+            <span class="detail-value">${Math.round(feels)}${unit}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Humidity</span>
+            <span class="detail-value">${data.main.humidity}%</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Wind</span>
+            <span class="detail-value">${Math.round(data.wind.speed)} m/s</span>
+          </div>
+        </div>
+      `;
+
+      result.querySelectorAll('.unit-toggle span').forEach(el => {
+        el.addEventListener('click', () => {
+          useCelsius = el.dataset.unit === 'c';
+          renderWeather(lastData);
+        });
+      });
+    }
+
+    function showError(msg) {
+      result.innerHTML = `<div class="error">&#9888; ${msg}</div>`;
+    }
+
+    function toF(c) { return c * 9 / 5 + 32; }
+  </script>
+</body>
+</html>
